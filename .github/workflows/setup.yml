@@ -91,6 +91,8 @@ jobs:
               -o $DOCKER_CONFIG/cli-plugins/docker-compose
             chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
 
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ghcr.io
+
   setup-dev:
     name: Set up Dev Services
     needs: [install-git, install-docker, setup-infra]
