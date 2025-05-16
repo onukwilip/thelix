@@ -36,7 +36,7 @@ jobs:
       - name: Import Terraform state
         run: |
           cd terraform
-          terraform import google_compute_instance.thelix-vm ${{ env.PROJECT_ID }}/${{env.VM_ZONE}}/${{env.VM_NAME}}
+          terraform import --var="project_id=${{ env.PROJECT_ID }}" --var="ssh_public_key=${{ secrets.GCP_SSH_PUBLIC_KEY }}" --var="ssh_user=${{ secrets.GCP_VM_USER }}" google_compute_instance.thelix-vm ${{ env.PROJECT_ID }}/${{env.VM_ZONE}}/${{env.VM_NAME}}
 
       - name: Apply Terraform
         run: |
