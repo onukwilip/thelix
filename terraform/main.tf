@@ -25,7 +25,7 @@ resource "google_compute_instance" "thelix-vm" {
   }
 
   metadata = {
-    enable-oslogin = "TRUE"
+    enable-oslogin = "FALSE"
     ssh-keys       = "${var.ssh_user}:${var.ssh_public_key}"
   }
 
