@@ -1,0 +1,137 @@
+on:
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  VM_ZONE: us-central1-a
+  VM_NAME: thelix-vm
+  GCP_REGION: us-central1
+
+jobs:
+  setup-infra:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch from the repository
+        uses: actions/checkout@v2
+
+      - name: Authenticate for GCP
+        id: gcp-auth
+        uses: google-github-actions/auth@v0
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.3
+
+      - name: Initialize Terraform
+        run: |
+          cd terraform 
+          terraform init
+
+      - name: Import Terraform state
+        run: |
+          cd terraform
+          terraform import google_compute_instance.thelix-vm ${{ env.PROJECT_ID }}/${{env.VM_ZONE}}/${{env.VM_NAME}}
+
+      - name: Apply Terraform
+        run: |
+          cd terraform
+          terraform apply --auto-approve --var="project_id=${{ env.PROJECT_ID }}" --var="ssh_public_key=${{ secrets.GCP_SSH_PUBLIC_KEY }}" --var="ssh_user=${{ secrets.GCP_VM_USER }}"
+
+      - name: Fetch VM External IP
+        id: get_ip
+        run: |
+          IP=$(gcloud compute instances describe ${{env.VM_NAME}} --zone=${{env.VM_ZONE}} --format='value(networkInterfaces[0].accessConfigs[0].natIP)')
+          echo "vm_ip=$IP" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      vm_ip: ${{ steps.get_ip.outputs.vm_ip }}
+
+  install-git:
+    name: Install Git
+    needs: setup-infra
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into VM and install Git
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            sudo apt update
+            sudo apt install -y git
+            git clone https://github.com/${GITHUB_REPOSITORY}
+
+  install-docker:
+    name: Install Docker & Docker Compose
+    needs: setup-infra
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into VM and install Docker
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sh get-docker.sh
+            sudo usermod -aG docker $USER
+
+            # Install Docker Compose v2
+            DOCKER_CONFIG=${DOCKER_CONFIG:-$HOME/.docker}
+            mkdir -p $DOCKER_CONFIG/cli-plugins
+            curl -SL https://github.com/docker/compose/releases/download/v2.24.2/docker-compose-linux-x86_64 \
+              -o $DOCKER_CONFIG/cli-plugins/docker-compose
+            chmod +x $DOCKER_CONFIG/cli-plugins/docker-compose
+
+  setup-dev:
+    name: Set up Dev Services
+    needs: [install-git, install-docker, setup-infra]
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into VM and Set Up Dev
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/thelix/dev
+            docker compose -f docker-compose.yml up -d
+
+  setup-prod:
+    name: Set up Prod Services
+    needs: [install-git, install-docker, setup-infra]
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into VM and Set Up Dev
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/thelix/prod
+            docker compose -f docker-compose.yml up -d
+
+  setup-monitoring:
+    name: Set up Monitoring Services
+    needs: [install-git, install-docker, setup-infra]
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into VM and Set Up Dev
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/thelix/monitoring
+            docker compose -f docker-compose.yml up -d

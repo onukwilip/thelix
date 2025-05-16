@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  frontend:
+    image: ghcr.io/onukwilip/meshery-practice-frontend:latest
+    expose:
+      - "3000" # internal only
+    environment:
+      BACKEND_A: http://nginx:81
+      BACKEND_B: http://nginx:82
+    networks:
+      - dev
+
+  backendA:
+    image: ghcr.io/onukwilip/meshery-practice-backend-a:latest
+    expose:
+      - "5000"
+    environment:
+      BACKEND_A: http://nginx:81
+      BACKEND_B: http://nginx:82
+    networks:
+      - dev
+
+  backendB:
+    image: ghcr.io/onukwilip/meshery-practice-backend-b:latest
+    expose:
+      - "6000"
+    environment:
+      BACKEND_A: http://nginx:81
+      BACKEND_B: http://nginx:82
+    networks:
+      - dev
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "3000:80" # for frontend
+      - "5000:81" # for backendA
+      - "6000:82" # for backendB
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - backendA
+      - backendB
+    networks:
+      - dev
+
+networks:
+  dev:
