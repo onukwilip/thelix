@@ -110,7 +110,7 @@ jobs:
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
             cd ~/thelix/dev
-            docker compose -f docker-compose.yml up -d
+            docker compose -f docker-compose.yml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
 
   setup-prod:
     name: Set up Prod Services
@@ -125,7 +125,7 @@ jobs:
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
             cd ~/thelix/prod
-            docker compose -f docker-compose.yml up -d
+            docker compose -f docker-compose.yml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
 
   setup-monitoring:
     name: Set up Monitoring Services
