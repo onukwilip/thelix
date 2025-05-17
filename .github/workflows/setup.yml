@@ -121,7 +121,7 @@ jobs:
     needs: [install-git, install-docker, setup-infra]
     runs-on: ubuntu-latest
     steps:
-      - name: SSH into VM and Set Up Dev
+      - name: SSH into VM and Set Up Prod
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ needs.setup-infra.outputs.vm_ip }}
@@ -136,7 +136,7 @@ jobs:
     needs: [install-git, install-docker, setup-infra]
     runs-on: ubuntu-latest
     steps:
-      - name: SSH into VM and Set Up Dev
+      - name: SSH into VM and Set Up Monitoring
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ needs.setup-infra.outputs.vm_ip }}

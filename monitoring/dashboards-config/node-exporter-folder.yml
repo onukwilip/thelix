@@ -12,7 +12,6 @@ providers:
   # 👇 This tells Grafana to replace "DS_PROMETHEUS" with your real data source
   inputs:
   - name: DS_PROMETHEUS
-    label: Prometheus
     type: datasource
     pluginId: prometheus
     value: Prometheus
