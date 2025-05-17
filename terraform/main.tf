@@ -29,9 +29,27 @@ resource "google_compute_instance" "thelix-vm" {
     ssh-keys       = "${var.ssh_user}:${var.ssh_public_key}"
   }
 
-  tags = ["http-server", "https-server"]
+  tags = ["http-server", "https-server", "thelix"]
 
   labels = {
     env = "monitoring"
   }
+}
+
+resource "google_compute_firewall" "thelix-allow-inbound" {
+  name    = "thelix-allow-inbound"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "81", "82", "3000", "3001", "5000", "6000", "8080", "9000", "9100"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+
+  target_tags = ["thelix"]
+
+  direction = "INGRESS"
+
+  description = "Allow inbound traffic on web and monitoring ports"
 }
