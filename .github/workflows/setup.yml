@@ -140,4 +140,5 @@ jobs:
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
             cd ~/thelix/monitoring
+            sudo chown 472:472 ./grafana-data
             docker compose -f docker-compose.yml up -d

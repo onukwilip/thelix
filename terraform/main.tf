@@ -42,7 +42,7 @@ resource "google_compute_firewall" "thelix-allow-inbound" {
 
   allow {
     protocol = "tcp"
-    ports    = ["80", "81", "82", "3000", "3001", "5000", "6000", "8080", "9000", "9100"]
+    ports    = ["80", "81", "82", "3000", "3001", "5000", "6000", "8080", "9090", "9100"]
   }
 
   source_ranges = ["0.0.0.0/0"]
