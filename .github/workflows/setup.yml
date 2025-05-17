@@ -66,7 +66,11 @@ jobs:
           script: |
             sudo apt update
             sudo apt install -y git
-            git clone https://github.com/onukwilip/thelix.git
+            if [ ! -d "/home/${{ secrets.GCP_VM_USER }}/thelix" ]; then
+                git clone https://github.com/onukwilip/thelix.git
+            else
+                echo "Repo already exists, skipping clone."
+            fi
 
   install-docker:
     name: Install Docker & Docker Compose
