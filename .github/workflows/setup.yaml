@@ -9,8 +9,34 @@ env:
   REPO_NAME: thelix
 
 jobs:
-  setup-infra:
+  deploy-to-docker:
     runs-on: ubuntu-latest
+    name: Deploy application to Docker Hub container registry
+    strategy:
+      matrix:
+        service: [frontend, backend-a, backend-b]
+    steps:
+      - name: Checkout branch from the repository
+        uses: actions/checkout@v2
+
+      - name: Authenticate and Docker Hub
+        env:
+          DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
+          DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+        run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+
+      - name: Build Docker image
+        run: |
+          cd /${{ matrix.service }}
+          docker build -t ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:$SHA -t ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:latest .
+
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:$SHA
+          docker push ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:latest
+  setup-infrastructure:
+    runs-on: ubuntu-latest
+    needs: deploy-to-docker
     steps:
       - name: Checkout branch from the repository
         uses: actions/checkout@v2
@@ -60,13 +86,13 @@ jobs:
 
   install-git:
     name: Install Git
-    needs: setup-infra
+    needs: setup-infrastructure
     runs-on: ubuntu-latest
     steps:
       - name: SSH into VM and install Git
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          host: ${{ needs.setup-infrastructure.outputs.vm_ip }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
@@ -82,13 +108,13 @@ jobs:
 
   install-docker:
     name: Install Docker & Docker Compose
-    needs: setup-infra
+    needs: setup-infrastructure
     runs-on: ubuntu-latest
     steps:
       - name: SSH into VM and install Docker
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          host: ${{ needs.setup-infrastructure.outputs.vm_ip }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
@@ -107,13 +133,13 @@ jobs:
 
   setup-dev:
     name: Set up Dev Services
-    needs: [install-git, install-docker, setup-infra]
+    needs: [install-git, install-docker, setup-infrastructure]
     runs-on: ubuntu-latest
     steps:
       - name: SSH into VM and Set Up Dev
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          host: ${{ needs.setup-infrastructure.outputs.vm_ip }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
@@ -122,13 +148,13 @@ jobs:
 
   setup-prod:
     name: Set up Prod Services
-    needs: [install-git, install-docker, setup-infra]
+    needs: [install-git, install-docker, setup-infrastructure]
     runs-on: ubuntu-latest
     steps:
       - name: SSH into VM and Set Up Prod
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          host: ${{ needs.setup-infrastructure.outputs.vm_ip }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
@@ -137,13 +163,13 @@ jobs:
 
   setup-monitoring:
     name: Set up Monitoring Services
-    needs: [install-git, install-docker, setup-infra]
+    needs: [install-git, install-docker, setup-infrastructure]
     runs-on: ubuntu-latest
     steps:
       - name: SSH into VM and Set Up Monitoring
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ needs.setup-infra.outputs.vm_ip }}
+          host: ${{ needs.setup-infrastructure.outputs.vm_ip }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
