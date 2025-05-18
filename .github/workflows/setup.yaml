@@ -12,6 +12,8 @@ jobs:
   deploy-to-docker:
     runs-on: ubuntu-latest
     name: Deploy ${{ matrix.service }} service to Docker Hub container registry
+    env:
+      SHA: ${{ github.sha }}
     strategy:
       matrix:
         service: [frontend, backend-a, backend-b]
