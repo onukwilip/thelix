@@ -6,6 +6,7 @@ env:
   VM_ZONE: us-central1-a
   VM_NAME: thelix-vm
   GCP_REGION: us-central1
+  REPO_NAME: thelix
 
 jobs:
   setup-infra:
@@ -70,10 +71,12 @@ jobs:
           script: |
             sudo apt update
             sudo apt install -y git
-            if [ ! -d "/home/${{ secrets.GCP_VM_USER }}/thelix" ]; then
-                git clone https://github.com/onukwilip/thelix.git
+            if [ ! -d "/home/${{ secrets.GCP_VM_USER }}/${{ env.REPO_NAME }}" ]; then
+                git clone https://github.com/onukwilip/${{ env.REPO_NAME }}.git
             else
-                echo "Repo already exists, skipping clone."
+                echo "Repo already exists, skipping clone. Pulling instead..."
+                cd ~/${{ env.REPO_NAME }}
+                git pull origin main
             fi
 
   install-docker:
@@ -113,7 +116,7 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
-            cd ~/thelix/dev
+            cd ~/${{ env.REPO_NAME }}/dev
             docker compose -f docker-compose.yml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
 
   setup-prod:
@@ -128,7 +131,7 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
-            cd ~/thelix/prod
+            cd ~/${{ env.REPO_NAME }}/prod
             docker compose -f docker-compose.yml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
 
   setup-monitoring:
@@ -143,6 +146,6 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
-            cd ~/thelix/monitoring
+            cd ~/${{ env.REPO_NAME }}/monitoring
             sudo chown 472:472 ./grafana-data
             docker compose -f docker-compose.yml up -d
