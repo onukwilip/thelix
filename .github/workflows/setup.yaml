@@ -52,6 +52,7 @@ jobs:
         id: get_ip
         run: |
           IP=$(gcloud compute instances describe ${{env.VM_NAME}} --zone=${{env.VM_ZONE}} --format='value(networkInterfaces[0].accessConfigs[0].natIP)')
+          echo "IP Address: $IP"
           echo "vm_ip=$IP" >> "$GITHUB_OUTPUT"
 
     outputs:
