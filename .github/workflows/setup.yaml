@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          cd /${{ matrix.service }}
+          cd ${{ matrix.service }}
           docker build -t ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:$SHA -t ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:latest .
 
       - name: Push Docker image to Docker Hub
