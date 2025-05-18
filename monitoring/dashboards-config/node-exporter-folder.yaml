@@ -7,7 +7,6 @@ providers:
   type: file
   options:
     path: /var/lib/grafana/dashboards
-    # folder: '/etc/grafana/provisioning/dashboards'
   editable: true
   allowUiUpdates: true
   # 👇 This tells Grafana to replace "DS_PROMETHEUS" with your real data source
