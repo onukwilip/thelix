@@ -11,7 +11,7 @@ env:
 jobs:
   deploy-to-docker:
     runs-on: ubuntu-latest
-    name: Deploy application to Docker Hub container registry
+    name: Deploy ${{ matrix.service }} service to Docker Hub container registry
     strategy:
       matrix:
         service: [frontend, backend-a, backend-b]
