@@ -15,4 +15,4 @@ providers:
   - name: DS_PROMETHEUS
     type: datasource
     pluginId: prometheus
-    value: Prometheus
+    value: prometheus
