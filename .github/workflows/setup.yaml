@@ -117,7 +117,7 @@ jobs:
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
             cd ~/${{ env.REPO_NAME }}/dev
-            docker compose -f docker-compose.yml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
+            docker compose -f docker-compose.yaml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
 
   setup-prod:
     name: Set up Prod Services
@@ -132,7 +132,7 @@ jobs:
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
             cd ~/${{ env.REPO_NAME }}/prod
-            docker compose -f docker-compose.yml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
+            docker compose -f docker-compose.yaml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
 
   setup-monitoring:
     name: Set up Monitoring Services
@@ -148,4 +148,4 @@ jobs:
           script: |
             cd ~/${{ env.REPO_NAME }}/monitoring
             sudo chown 472:472 ./grafana-data
-            docker compose -f docker-compose.yml up -d
+            docker compose -f docker-compose.yaml up -d
