@@ -1,0 +1,140 @@
+on:
+  workflow_dispatch:
+    inputs:
+      refresh-monitoring:
+        required: false
+        description: Specifies if the pipeline should refresh the monitoring instance
+        type: boolean
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  VM_ZONE: us-central1-a
+  VM_NAME: thelix-vm
+  GCP_REGION: us-central1
+  REPO_NAME: thelix
+
+jobs:
+  deploy-to-docker:
+    runs-on: ubuntu-latest
+    name: Deploy ${{ matrix.service }} service to Docker Hub container registry
+    env:
+      SHA: ${{ github.sha }}
+    strategy:
+      matrix:
+        service: [frontend, backend-a, backend-b]
+    steps:
+      - name: Checkout branch from the repository
+        uses: actions/checkout@v2
+
+      - name: Authenticate and Docker Hub
+        env:
+          DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
+          DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+        run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD ghcr.io
+
+      - name: Build Docker image
+        run: |
+          cd ${{ matrix.service }}
+          docker build -t ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:$SHA -t ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:latest .
+
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:$SHA
+          docker push ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:latest
+  retrieve-vm-ip:
+    runs-on: ubuntu-latest
+    needs: deploy-to-docker
+    steps:
+      - name: Checkout branch from the repository
+        uses: actions/checkout@v2
+
+      - name: Authenticate for GCP
+        id: gcp-auth
+        uses: google-github-actions/auth@v0
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.3
+
+      - name: Initialize Terraform
+        run: |
+          cd terraform 
+          terraform init
+
+      - name: Import Terraform state
+        run: |
+          cd terraform
+
+          # IMPORT VM INSTANCE
+          terraform import --var="project_id=${{ env.PROJECT_ID }}" --var="ssh_public_key=${{ secrets.GCP_SSH_PUBLIC_KEY }}" --var="ssh_user=${{ secrets.GCP_VM_USER }}" google_compute_instance.thelix-vm ${{ env.PROJECT_ID }}/${{env.VM_ZONE}}/${{env.VM_NAME}} || true
+
+      - name: Fetch VM External IP
+        id: get_ip
+        run: |
+          IP=$(gcloud compute instances describe ${{env.VM_NAME}} --zone=${{env.VM_ZONE}} --format='value(networkInterfaces[0].accessConfigs[0].natIP)')
+          echo "IP Address: $IP"
+          echo "vm_ip=$IP" >> "$GITHUB_OUTPUT"
+
+    outputs:
+      vm_ip: ${{ steps.get_ip.outputs.vm_ip }}
+
+  refresh-services:
+    name: Pull & Restart Dev and Prod Services
+    needs: [retrieve-vm-ip]
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into VM and Pull + Restart Dev & Prod
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{needs.retrieve-vm-ip.outputs.vm_ip}}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/${{env.REPO_NAME}}
+
+            # Pull latest images for all services
+            docker pull ghcr.io/onukwilip/meshery-practice-frontend:latest
+            docker pull ghcr.io/onukwilip/meshery-practice-backend-a:latest
+            docker pull ghcr.io/onukwilip/meshery-practice-backend-b:latest
+
+            # Restart dev services
+            cd ~/${{env.REPO_NAME}}/dev
+            docker compose -f docker-compose.yaml down
+            docker compose -f docker-compose.yaml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
+
+            # Restart prod services
+            cd ~/${{env.REPO_NAME}}/prod
+            docker compose -f docker-compose.yaml down
+            docker compose -f docker-compose.yaml up -d --scale frontend=2 --scale backendA=2 --scale backendB=2
+
+  refresh-monitoring:
+    name: Pull & Restart Monitoring Services
+    needs: [retrieve-vm-ip]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.refresh-monitoring == 'true' }}
+    steps:
+      - name: SSH into VM and Pull + Refresh monitoring services
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{needs.retrieve-vm-ip.outputs.vm_ip}}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/${{env.REPO_NAME}}
+
+            # Pull latest commit
+            git pull origin main
+
+            # Restart monitoring services
+            cd ~/${{env.REPO_NAME}}/monitoring
+            docker compose -f docker-compose.yaml down
+            docker compose -f docker-compose.yaml up -d
