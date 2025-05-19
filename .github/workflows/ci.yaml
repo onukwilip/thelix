@@ -44,6 +44,7 @@ jobs:
         run: |
           docker push ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:$SHA
           docker push ghcr.io/onukwilip/meshery-practice-${{ matrix.service }}:latest
+
   retrieve-vm-ip:
     runs-on: ubuntu-latest
     needs: deploy-to-docker
