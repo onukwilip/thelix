@@ -99,7 +99,7 @@ jobs:
     name: Pull & Restart Dev and Prod Services
     needs: [retrieve-vm-ip]
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.refresh-services == 'true' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.refresh-services == 'true' }}
     steps:
       - name: SSH into VM and Pull + Restart Dev & Prod
         uses: appleboy/ssh-action@v1.0.0
